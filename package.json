@@ -1,0 +1,28 @@
+{
+  "name": "subplot-social-agents",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "collect:reddit": "node agents/scout/collectors/reddit.js",
+    "collect:goodreads": "node agents/scout/collectors/goodreads.js",
+    "collect:tiktok": "node agents/scout/collectors/tiktok.js",
+    "collect:merge": "node agents/scout/collectors/merge.js",
+    "collect:all": "npm run collect:reddit && npm run collect:goodreads && npm run collect:tiktok && npm run collect:merge",
+    "analyze": "node agents/scout/analyzer.js",
+    "digest": "node agents/scout/digest.js",
+    "deliver": "node agents/scout/deliver.js",
+    "scout": "node agents/scout/index.js",
+    "scout:quick": "node agents/scout/index.js --skip-collect"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
+    "nodemailer": "^7.0.12",
+    "puppeteer-core": "^24.34.0"
+  }
+}
