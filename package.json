@@ -14,7 +14,13 @@
     "digest": "node agents/scout/digest.js",
     "deliver": "node agents/scout/deliver.js",
     "scout": "node agents/scout/index.js",
-    "scout:quick": "node agents/scout/index.js --skip-collect"
+    "scout:quick": "node agents/scout/index.js --skip-collect",
+    "generate": "node agents/content-generator/index.js",
+    "pipeline": "npm run scout && npm run generate",
+    "pipeline:quick": "npm run scout:quick && npm run generate",
+    "visual": "node agents/visual-creator/index.js",
+    "pipeline:full": "npm run scout && npm run generate && npm run visual",
+    "pipeline:full:quick": "npm run scout:quick && npm run generate && npm run visual"
   },
   "keywords": [],
   "author": "",
@@ -22,7 +28,9 @@
   "type": "commonjs",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
+    "canvas": "^3.2.0",
     "nodemailer": "^7.0.12",
-    "puppeteer-core": "^24.34.0"
+    "puppeteer-core": "^24.34.0",
+    "sharp": "^0.34.5"
   }
 }
