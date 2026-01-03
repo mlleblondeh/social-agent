@@ -13,9 +13,11 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function getLatestRedditFile() {
+function getLatestFile(prefix) {
+  if (!fs.existsSync(RAW_DIR)) return null;
+
   const files = fs.readdirSync(RAW_DIR)
-    .filter(f => f.startsWith('reddit-') && f.endsWith('.json'))
+    .filter(f => f.startsWith(prefix) && f.endsWith('.json'))
     .sort()
     .reverse();
 
@@ -27,20 +29,29 @@ function loadPromptTemplate() {
   return fs.readFileSync(PROMPT_PATH, 'utf8');
 }
 
-function buildPrompt(template, post) {
-  return template
-    .replace('{{subreddit}}', post.subreddit)
-    .replace('{{title}}', post.title)
-    .replace('{{score}}', post.score)
-    .replace('{{num_comments}}', post.num_comments)
-    .replace('{{selftext}}', post.selftext || '(no body text)');
+function buildPrompt(template, post, source) {
+  if (source === 'reddit') {
+    return template
+      .replace('{{subreddit}}', post.subreddit || 'unknown')
+      .replace('{{title}}', post.title || '')
+      .replace('{{score}}', post.score || 0)
+      .replace('{{num_comments}}', post.num_comments || 0)
+      .replace('{{selftext}}', post.selftext || '(no body text)');
+  } else if (source === 'tiktok') {
+    // Adapt TikTok data to fit the prompt template
+    return template
+      .replace('{{subreddit}}', `TikTok #${post.sourceHashtag || 'BookTok'}`)
+      .replace('{{title}}', post.text || post.desc || '(video content)')
+      .replace('{{score}}', post.diggCount || 0)
+      .replace('{{num_comments}}', post.commentCount || 0)
+      .replace('{{selftext}}', `Video by @${post.authorMeta?.username || 'unknown'}. Plays: ${post.playCount || 'N/A'}`);
+  }
+  return template;
 }
 
 function parseAnalysis(text) {
-  // Extract JSON from response (handle markdown code blocks)
   let jsonStr = text.trim();
 
-  // Remove markdown code blocks if present
   if (jsonStr.startsWith('```')) {
     jsonStr = jsonStr.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
   }
@@ -49,13 +60,12 @@ function parseAnalysis(text) {
     return JSON.parse(jsonStr);
   } catch (e) {
     console.error('Failed to parse JSON:', e.message);
-    console.error('Raw response:', text.slice(0, 200));
     return null;
   }
 }
 
-async function analyzePost(client, promptTemplate, post) {
-  const prompt = buildPrompt(promptTemplate, post);
+async function analyzePost(client, promptTemplate, post, source) {
+  const prompt = buildPrompt(promptTemplate, post, source);
 
   try {
     const response = await client.messages.create({
@@ -79,44 +89,86 @@ async function analyzePost(client, promptTemplate, post) {
 }
 
 async function main() {
-  // Check for API key
   if (!apiKey) {
     console.error('Error: ANTHROPIC_API_KEY not set.');
-    console.error('Set it via environment variable or in agents/scout/config.js');
     process.exit(1);
   }
 
   const client = new Anthropic.default({ apiKey });
   const promptTemplate = loadPromptTemplate();
 
-  // Find latest Reddit data
-  const redditFile = getLatestRedditFile();
-  if (!redditFile) {
-    console.error('No Reddit data found. Run npm run collect:reddit first.');
+  // Find available data sources
+  const redditFile = getLatestFile('reddit-');
+  const tiktokFile = getLatestFile('tiktok-');
+
+  let allPosts = [];
+  let sources = [];
+
+  // Load Reddit data if available and has posts
+  if (redditFile) {
+    try {
+      const data = JSON.parse(fs.readFileSync(redditFile, 'utf8'));
+      if (data.posts && data.posts.length > 0) {
+        allPosts.push(...data.posts.map(p => ({ ...p, _source: 'reddit' })));
+        sources.push(`Reddit (${data.posts.length} posts)`);
+      }
+    } catch (e) {
+      console.log(`Warning: Could not load Reddit data: ${e.message}`);
+    }
+  }
+
+  // Load TikTok data if available and has videos
+  if (tiktokFile) {
+    try {
+      const data = JSON.parse(fs.readFileSync(tiktokFile, 'utf8'));
+      if (data.videos && data.videos.length > 0) {
+        // Convert TikTok videos to analyzable format
+        const tiktokPosts = data.videos.map(v => ({
+          id: v.id,
+          title: v.text || v.desc || '(TikTok video)',
+          text: v.text || v.desc || '',
+          score: v.diggCount || 0,
+          num_comments: v.commentCount || 0,
+          playCount: v.playCount || 0,
+          subreddit: `TikTok`,
+          sourceHashtag: v.sourceHashtag,
+          permalink: v.webVideoUrl,
+          authorMeta: v.authorMeta,
+          _source: 'tiktok'
+        }));
+        allPosts.push(...tiktokPosts);
+        sources.push(`TikTok (${data.videos.length} videos)`);
+      }
+    } catch (e) {
+      console.log(`Warning: Could not load TikTok data: ${e.message}`);
+    }
+  }
+
+  if (allPosts.length === 0) {
+    console.error('No data found. Run collectors first.');
     process.exit(1);
   }
 
   console.log(`\nScout Analyzer - ${new Date().toISOString()}`);
-  console.log(`Reading: ${path.basename(redditFile)}\n`);
-
-  const data = JSON.parse(fs.readFileSync(redditFile, 'utf8'));
-  const posts = data.posts;
-
-  console.log(`Analyzing ${posts.length} posts...\n`);
+  console.log(`Sources: ${sources.join(', ')}`);
+  console.log(`Total items to analyze: ${allPosts.length}\n`);
 
   const results = [];
 
-  for (let i = 0; i < posts.length; i++) {
-    const post = posts[i];
-    const shortTitle = post.title.slice(0, 50) + (post.title.length > 50 ? '...' : '');
+  for (let i = 0; i < allPosts.length; i++) {
+    const post = allPosts[i];
+    const shortTitle = (post.title || '').slice(0, 50) + ((post.title || '').length > 50 ? '...' : '');
+    const sourceLabel = post._source === 'tiktok' ? '🎵' : '📡';
 
-    process.stdout.write(`[${i + 1}/${posts.length}] ${shortTitle}`);
+    process.stdout.write(`[${i + 1}/${allPosts.length}] ${sourceLabel} ${shortTitle}`);
 
-    const analysis = await analyzePost(client, promptTemplate, post);
+    const analysis = await analyzePost(client, promptTemplate, post, post._source);
 
     results.push({
       id: post.id,
+      source: post._source,
       subreddit: post.subreddit,
+      sourceHashtag: post.sourceHashtag,
       title: post.title,
       url: post.permalink,
       score: post.score,
@@ -130,24 +182,21 @@ async function main() {
       console.log(` - ${analysis.action} (${analysis.relevance_score}/10)`);
     }
 
-    // Rate limit between requests (except after last one)
-    if (i < posts.length - 1) {
+    if (i < allPosts.length - 1) {
       await sleep(rateLimitMs);
     }
   }
 
-  // Ensure output directory exists
   if (!fs.existsSync(ANALYZED_DIR)) {
     fs.mkdirSync(ANALYZED_DIR, { recursive: true });
   }
 
-  // Save results
   const date = new Date().toISOString().split('T')[0];
-  const outputPath = path.join(ANALYZED_DIR, `reddit-${date}.json`);
+  const outputPath = path.join(ANALYZED_DIR, `scout-${date}.json`);
 
   const output = {
     analyzed_at: new Date().toISOString(),
-    source_file: path.basename(redditFile),
+    sources: sources,
     total_posts: results.length,
     summary: generateSummary(results),
     posts: results
@@ -156,7 +205,6 @@ async function main() {
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`\nSaved analysis to ${outputPath}`);
 
-  // Print summary
   printSummary(output.summary, results);
 }
 
@@ -165,12 +213,14 @@ function generateSummary(results) {
 
   const byAction = { recreate: 0, reshare: 0, skip: 0 };
   const byFormat = {};
+  const bySource = {};
   let totalRelevance = 0;
 
   for (const r of validResults) {
     const a = r.analysis;
     byAction[a.action] = (byAction[a.action] || 0) + 1;
     byFormat[a.format_type] = (byFormat[a.format_type] || 0) + 1;
+    bySource[r.source] = (bySource[r.source] || 0) + 1;
     totalRelevance += a.relevance_score;
   }
 
@@ -181,17 +231,17 @@ function generateSummary(results) {
       ? (totalRelevance / validResults.length).toFixed(1)
       : 0,
     by_action: byAction,
-    by_format: byFormat
+    by_format: byFormat,
+    by_source: bySource
   };
 }
 
 function printSummary(summary, results) {
   console.log('\n--- Summary ---');
-  console.log(`Analyzed: ${summary.total_analyzed} posts`);
+  console.log(`Analyzed: ${summary.total_analyzed} items`);
   console.log(`Avg relevance: ${summary.avg_relevance}/10`);
   console.log(`Actions: ${summary.by_action.recreate} recreate, ${summary.by_action.reshare} reshare, ${summary.by_action.skip} skip`);
 
-  // Show top posts to recreate
   const topPosts = results
     .filter(r => r.analysis.action === 'recreate' && !r.analysis.error)
     .sort((a, b) => b.analysis.relevance_score - a.analysis.relevance_score)
@@ -200,7 +250,8 @@ function printSummary(summary, results) {
   if (topPosts.length > 0) {
     console.log('\nTop posts to recreate:');
     topPosts.forEach((p, i) => {
-      console.log(`  ${i + 1}. [${p.analysis.relevance_score}/10] ${p.title.slice(0, 60)}...`);
+      const icon = p.source === 'tiktok' ? '🎵' : '📡';
+      console.log(`  ${i + 1}. ${icon} [${p.analysis.relevance_score}/10] ${(p.title || '').slice(0, 50)}...`);
       console.log(`     Angle: ${p.analysis.subplot_angle}`);
     });
   }

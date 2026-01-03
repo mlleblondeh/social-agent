@@ -13,7 +13,9 @@ function fetchJson(url) {
   return new Promise((resolve, reject) => {
     const options = {
       headers: {
-        'User-Agent': 'SubplotSocialAgents/1.0 (Scout Collector)'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+        'Accept-Language': 'en-US,en;q=0.9'
       }
     };
 
@@ -22,6 +24,11 @@ function fetchJson(url) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
+          // Check if we got HTML instead of JSON (Reddit blocking)
+          if (data.trim().startsWith('<')) {
+            reject(new Error('Reddit returned HTML - request may be blocked'));
+            return;
+          }
           resolve(JSON.parse(data));
         } catch (e) {
           reject(new Error(`Failed to parse JSON: ${e.message}`));
