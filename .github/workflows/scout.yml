@@ -1,8 +1,8 @@
-name: Daily Scout Report
+name: Weekly Scout Report
 
 on:
   schedule:
-    - cron: '0 11 * * *'  # 6am EST / 11am UTC
+    - cron: '0 22 * * 0'  # Sunday 5pm EST / 10pm UTC
   workflow_dispatch:  # Manual trigger
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
-        run: npm run scout
+        run: npm run scout:week
 
       - name: Upload artifacts
         if: always()
