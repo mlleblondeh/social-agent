@@ -13,16 +13,17 @@ const SCRIPTS = {
 
 const args = process.argv.slice(2);
 const skipCollect = args.includes('--skip-collect');
+const downloadMedia = args.includes('--download');
 
 function log(icon, message) {
   const timestamp = new Date().toLocaleTimeString();
   console.log(`[${timestamp}] ${icon} ${message}`);
 }
 
-function runScript(name, scriptPath) {
+function runScript(name, scriptPath, extraArgs = []) {
   return new Promise((resolve, reject) => {
     const fullPath = path.join(__dirname, scriptPath);
-    const proc = spawn('node', [fullPath], {
+    const proc = spawn('node', [fullPath, ...extraArgs], {
       stdio: 'inherit',
       cwd: path.join(__dirname, '../..')
     });
@@ -53,12 +54,19 @@ async function main() {
   try {
     // Step 1: Collect
     if (!skipCollect) {
+      // Pass --download flag to collectors if specified
+      const collectorArgs = downloadMedia ? ['--download'] : [];
+
+      if (downloadMedia) {
+        log('📦', 'Download mode enabled - will download media files');
+      }
+
       log('📡', 'Collecting from Reddit...');
-      await runScript('Reddit collector', SCRIPTS.reddit);
+      await runScript('Reddit collector', SCRIPTS.reddit, collectorArgs);
       console.log('');
 
       log('🎵', 'Collecting from TikTok...');
-      await runScript('TikTok collector', SCRIPTS.tiktok);
+      await runScript('TikTok collector', SCRIPTS.tiktok, collectorArgs);
       console.log('');
     }
 

@@ -2,8 +2,11 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { downloadImage, extractRedditImageUrl, isImagePost } = require('./downloader');
 
 const { subreddits, rateLimitMs, maxAgeHours, postsPerSubreddit } = config.reddit;
+const downloadEnabled = config.media?.downloadEnabled ?? false;
+const maxDownloads = config.media?.maxDownloadsPerSource ?? 20;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -40,7 +43,7 @@ function fetchJson(url) {
 
 function extractPostData(post) {
   const data = post.data;
-  return {
+  const extracted = {
     id: data.id,
     title: data.title,
     selftext: data.selftext || '',
@@ -49,8 +52,23 @@ function extractPostData(post) {
     num_comments: data.num_comments,
     created_utc: data.created_utc,
     subreddit: data.subreddit,
-    permalink: `https://www.reddit.com${data.permalink}`
+    permalink: `https://www.reddit.com${data.permalink}`,
+    author: data.author,
+    // Include preview data for image extraction
+    preview: data.preview,
+    gallery_data: data.gallery_data,
+    media_metadata: data.media_metadata,
+    post_hint: data.post_hint
   };
+
+  // Check if this is an image post and extract URL
+  const imageUrl = extractRedditImageUrl(extracted);
+  if (imageUrl) {
+    extracted.imageUrl = imageUrl;
+    extracted.isImagePost = true;
+  }
+
+  return extracted;
 }
 
 function isWithinTimeWindow(post, maxAgeHours) {
@@ -124,9 +142,62 @@ function saveResults(posts) {
   return outputPath;
 }
 
+/**
+ * Download images for top image posts
+ * @param {Array} posts - Array of post objects
+ * @returns {Promise<Array>} - Posts with localMediaPath added
+ */
+async function downloadTopImages(posts) {
+  // Filter to image posts only and sort by score
+  const imagePosts = posts
+    .filter(p => p.isImagePost && p.imageUrl)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxDownloads);
+
+  if (imagePosts.length === 0) {
+    console.log('\n📷 No image posts found to download.');
+    return posts;
+  }
+
+  console.log(`\n📥 Downloading top ${imagePosts.length} images...`);
+
+  let downloaded = 0;
+  let failed = 0;
+
+  for (const post of imagePosts) {
+    process.stdout.write(`  Downloading ${post.id}... `);
+
+    const result = await downloadImage(post.imageUrl, post.id);
+
+    if (result.success) {
+      post.localMediaPath = result.localPath;
+      post.downloadedAt = new Date().toISOString();
+      if (result.cached) {
+        console.log('(cached)');
+      } else {
+        console.log('OK');
+        downloaded++;
+      }
+    } else {
+      console.log(`FAILED: ${result.error}`);
+      failed++;
+    }
+
+    // Small delay between downloads
+    await sleep(500);
+  }
+
+  console.log(`\n✅ Downloaded: ${downloaded}, Failed: ${failed}, Cached: ${imagePosts.length - downloaded - failed}`);
+
+  return posts;
+}
+
 async function main() {
+  // Check for --download flag or config setting
+  const shouldDownload = downloadEnabled || process.argv.includes('--download');
+
   try {
-    const posts = await collectAll();
+    let posts = await collectAll();
 
     if (posts.length === 0) {
       console.log('\nNo posts found in the last 48 hours.');
@@ -136,12 +207,18 @@ async function main() {
     // Sort by score descending
     posts.sort((a, b) => b.score - a.score);
 
+    // Download images if enabled
+    if (shouldDownload) {
+      posts = await downloadTopImages(posts);
+    }
+
     saveResults(posts);
 
     // Print summary
     console.log('\nTop 5 posts:');
     posts.slice(0, 5).forEach((post, i) => {
-      console.log(`  ${i + 1}. [${post.subreddit}] ${post.title.slice(0, 60)}... (${post.score} upvotes)`);
+      const hasMedia = post.localMediaPath ? ' 📁' : (post.isImagePost ? ' 🖼️' : '');
+      console.log(`  ${i + 1}. [${post.subreddit}] ${post.title.slice(0, 60)}... (${post.score} upvotes)${hasMedia}`);
     });
   } catch (error) {
     console.error('Collection failed:', error.message);

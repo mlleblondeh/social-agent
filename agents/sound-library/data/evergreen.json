@@ -1,0 +1,76 @@
+{
+  "sounds": [
+    {
+      "id": "evergreen-001",
+      "name": "Dreams - Fleetwood Mac",
+      "artist": "Fleetwood Mac",
+      "category": "cozy",
+      "status": "evergreen",
+      "formats": ["aesthetic", "storytelling"],
+      "tags": ["reading", "vibes", "autumn", "classic"],
+      "notes": "Always works for reading content and aesthetic videos"
+    },
+    {
+      "id": "evergreen-002",
+      "name": "Enchanted - Taylor Swift",
+      "artist": "Taylor Swift",
+      "category": "romantic",
+      "status": "evergreen",
+      "formats": ["pov", "aesthetic"],
+      "tags": ["yearning", "love interest", "fairy tale", "romantic reveal"],
+      "notes": "Perfect for book boyfriend and first meeting content"
+    },
+    {
+      "id": "evergreen-003",
+      "name": "Summertime Sadness - Lana Del Rey",
+      "artist": "Lana Del Rey",
+      "category": "romantic",
+      "status": "evergreen",
+      "formats": ["pov", "aesthetic"],
+      "tags": ["melancholy", "yearning", "aesthetic", "dreamy"],
+      "notes": "Works for bittersweet romantic content"
+    },
+    {
+      "id": "evergreen-004",
+      "name": "Running Up That Hill - Kate Bush",
+      "artist": "Kate Bush",
+      "category": "dramatic",
+      "status": "evergreen",
+      "formats": ["pov", "storytelling"],
+      "tags": ["intense", "feelings", "emotional", "cinematic"],
+      "notes": "Great for dramatic reveals and emotional moments"
+    },
+    {
+      "id": "evergreen-005",
+      "name": "Slowed + Reverb Romantic",
+      "artist": "Various",
+      "category": "dramatic",
+      "status": "evergreen",
+      "formats": ["pov", "aesthetic"],
+      "tags": ["emotional", "cinematic", "slowed", "yearning"],
+      "notes": "Generic slowed romantic songs work for POV reveals"
+    },
+    {
+      "id": "evergreen-006",
+      "name": "I'm Not Okay Audio",
+      "artist": "Various BookTok",
+      "category": "unhinged",
+      "status": "evergreen",
+      "formats": ["meme_reaction", "hot_take"],
+      "tags": ["fictional men", "obsessed", "unwell", "relatable"],
+      "notes": "Any audio about not being okay over fictional men"
+    },
+    {
+      "id": "evergreen-007",
+      "name": "Rom-Com Movie Soundtrack",
+      "artist": "Various",
+      "category": "cozy",
+      "status": "evergreen",
+      "formats": ["aesthetic", "storytelling"],
+      "tags": ["comfort", "rom-com", "feel good", "soft"],
+      "notes": "Generic romantic comedy instrumentals"
+    }
+  ],
+  "last_updated": "2025-01-04",
+  "total_sounds": 7
+}

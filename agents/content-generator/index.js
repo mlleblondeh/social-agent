@@ -7,8 +7,14 @@ const { formatOutput, printSummary } = require('./formatter');
 
 const OUTPUT_DIR = path.join(__dirname, '../../', config.paths.contentOutput);
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+const batchArg = args.find(a => a.startsWith('--batch='));
+const batchMode = batchArg ? batchArg.split('=')[1] : config.schedule.batchMode;
+
 async function main() {
   console.log('Content Generator - ' + new Date().toISOString());
+  console.log(`Mode: ${batchMode}`);
   console.log('='.repeat(50));
 
   // Step 1: Select trends from Scout output
@@ -23,20 +29,21 @@ async function main() {
 
   // Step 2: Generate content
   console.log('\n[2/3] Generating content with Claude...');
-  const generated = await generateAll(trends);
+  const generated = await generateAll(trends, { batchMode });
 
   // Step 3: Format output
   console.log('\n[3/3] Formatting output...');
   const date = new Date().toISOString().split('T')[0];
-  const output = formatOutput(generated, date);
+  const output = formatOutput(generated, date, { batchMode });
 
   // Ensure output directory exists
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }
 
-  // Save output
-  const outputPath = path.join(OUTPUT_DIR, `queue-${date}.json`);
+  // Save output with appropriate filename
+  const filePrefix = batchMode === 'weekly' ? 'weekly-queue' : 'queue';
+  const outputPath = path.join(OUTPUT_DIR, `${filePrefix}-${date}.json`);
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`\nSaved to: ${outputPath}`);
 

@@ -7,13 +7,19 @@ const { generateMeme } = require('./generators/meme');
 
 const OUTPUT_DIR = path.join(__dirname, '../../', config.paths.imageOutput);
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+const batchArg = args.find(a => a.startsWith('--batch='));
+const batchMode = batchArg ? batchArg.split('=')[1] : 'daily';
+
 async function main() {
   console.log('Visual Creator - ' + new Date().toISOString());
+  console.log(`Mode: ${batchMode}`);
   console.log('='.repeat(50));
 
   // Step 1: Load content queue
   console.log('\n[1/3] Loading content queue...');
-  const queue = loadContentQueue();
+  const queue = loadContentQueue(batchMode);
 
   if (!queue) {
     console.error('\nNo content queue found.');
@@ -82,6 +88,7 @@ async function main() {
   const date = new Date().toISOString().split('T')[0];
   const manifest = {
     generated_at: date,
+    batch_mode: batchMode,
     source_queue: queue.generated_at,
     images: results,
     total: generated,

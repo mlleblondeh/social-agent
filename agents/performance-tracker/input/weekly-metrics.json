@@ -1,0 +1,50 @@
+{
+  "week_of": "2025-01-06",
+  "follower_changes": {
+    "tiktok": 0,
+    "instagram": 0,
+    "threads": 0
+  },
+  "posts": [
+    {
+      "content_id": "content-001",
+      "platform": "instagram",
+      "type": "video",
+      "pillar": "character_attachment",
+      "posted_at": "2025-01-06T09:00:00Z",
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "saves": 0,
+      "reach": 0,
+      "notes": ""
+    },
+    {
+      "content_id": "content-002",
+      "platform": "tiktok",
+      "type": "video",
+      "pillar": "reader_relatability",
+      "posted_at": "2025-01-06T18:00:00Z",
+      "views": 0,
+      "likes": 0,
+      "comments": 0,
+      "shares": 0,
+      "watch_time_avg": 0,
+      "completion_rate": 0,
+      "fyp_traffic_percent": 0,
+      "notes": ""
+    },
+    {
+      "content_id": "content-003",
+      "platform": "threads",
+      "type": "threads",
+      "pillar": "story_immersion",
+      "posted_at": "2025-01-07T12:00:00Z",
+      "likes": 0,
+      "replies": 0,
+      "reposts": 0,
+      "quotes": 0,
+      "notes": ""
+    }
+  ]
+}

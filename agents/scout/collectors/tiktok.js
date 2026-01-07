@@ -2,8 +2,11 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { downloadTikTokVideo, checkYtDlp } = require('./downloader');
 
 const { hashtags, sessionId, rateLimitMs, videosPerHashtag } = config.tiktok;
+const downloadEnabled = config.media?.downloadEnabled ?? false;
+const maxDownloads = config.media?.maxDownloadsPerSource ?? 20;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -231,15 +234,81 @@ function formatNumber(num) {
   return num.toString();
 }
 
+/**
+ * Download videos for top performers
+ * @param {Array} videos - Array of video objects
+ * @returns {Promise<Array>} - Videos with localMediaPath added
+ */
+async function downloadTopVideos(videos) {
+  // Check if yt-dlp is available
+  if (!checkYtDlp()) {
+    console.log('\n⚠️  yt-dlp not found. Install with: brew install yt-dlp');
+    console.log('   Skipping video downloads.\n');
+    return videos;
+  }
+
+  // Sort by engagement and take top N
+  const sortedVideos = [...videos].sort((a, b) => {
+    const engagementA = (a.playCount || 0) + (a.diggCount || 0) * 10;
+    const engagementB = (b.playCount || 0) + (b.diggCount || 0) * 10;
+    return engagementB - engagementA;
+  });
+
+  const toDownload = sortedVideos.slice(0, maxDownloads);
+  console.log(`\n📥 Downloading top ${toDownload.length} videos...`);
+
+  let downloaded = 0;
+  let failed = 0;
+
+  for (const video of toDownload) {
+    const url = video.webVideoUrl;
+    const videoId = video.id;
+    const username = video.authorMeta?.username || 'unknown';
+
+    process.stdout.write(`  Downloading ${videoId}... `);
+
+    const result = await downloadTikTokVideo(url, videoId, username);
+
+    if (result.success) {
+      video.localMediaPath = result.localPath;
+      video.downloadedAt = new Date().toISOString();
+      if (result.cached) {
+        console.log('(cached)');
+      } else {
+        console.log('OK');
+        downloaded++;
+      }
+    } else {
+      console.log(`FAILED: ${result.error}`);
+      failed++;
+    }
+
+    // Small delay between downloads
+    await sleep(1000);
+  }
+
+  console.log(`\n✅ Downloaded: ${downloaded}, Failed: ${failed}, Cached: ${toDownload.length - downloaded - failed}`);
+
+  return videos;
+}
+
 async function main() {
+  // Check for --download flag or config setting
+  const shouldDownload = downloadEnabled || process.argv.includes('--download');
+
   try {
-    const videos = await collectAll();
+    let videos = await collectAll();
 
     if (videos.length === 0) {
       console.log('\nNo videos found.');
       // Still save empty result so merge doesn't fail
       saveResults([]);
       return;
+    }
+
+    // Download top videos if enabled
+    if (shouldDownload) {
+      videos = await downloadTopVideos(videos);
     }
 
     saveResults(videos);
@@ -250,7 +319,8 @@ async function main() {
         ? `${formatNumber(v.playCount)} plays, ${formatNumber(v.diggCount)} likes`
         : 'stats unavailable';
       const text = (v.text || v.desc || '').slice(0, 40);
-      console.log(`  ${i + 1}. @${v.authorMeta?.username || 'unknown'}: ${text}... (${engagement})`);
+      const hasMedia = v.localMediaPath ? ' 📁' : '';
+      console.log(`  ${i + 1}. @${v.authorMeta?.username || 'unknown'}: ${text}... (${engagement})${hasMedia}`);
     });
   } catch (error) {
     console.error('Collection failed:', error.message);

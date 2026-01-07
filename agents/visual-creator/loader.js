@@ -4,20 +4,35 @@ const config = require('./config');
 
 const CONTENT_DIR = path.join(__dirname, '../../', config.paths.contentQueue);
 
-function getLatestQueueFile() {
+function getLatestQueueFile(batchMode = 'daily') {
   if (!fs.existsSync(CONTENT_DIR)) return null;
 
   const files = fs.readdirSync(CONTENT_DIR)
-    .filter(f => f.startsWith('queue-') && f.endsWith('.json'))
+    .filter(f => f.endsWith('.json'))
     .sort()
     .reverse();
 
   if (files.length === 0) return null;
+
+  // Prefer weekly queue if in weekly mode
+  if (batchMode === 'weekly') {
+    const weeklyFile = files.find(f => f.startsWith('weekly-queue-'));
+    if (weeklyFile) {
+      return path.join(CONTENT_DIR, weeklyFile);
+    }
+  }
+
+  // Fall back to latest queue file
+  const queueFile = files.find(f => f.startsWith('queue-') || f.startsWith('weekly-queue-'));
+  if (queueFile) {
+    return path.join(CONTENT_DIR, queueFile);
+  }
+
   return path.join(CONTENT_DIR, files[0]);
 }
 
-function loadContentQueue() {
-  const filePath = getLatestQueueFile();
+function loadContentQueue(batchMode = 'daily') {
+  const filePath = getLatestQueueFile(batchMode);
 
   if (!filePath) {
     console.error('No content queue found. Run content generator first: npm run generate');

@@ -8,6 +8,16 @@ module.exports = {
     rateLimitMs: 1000
   },
 
+  // Media download settings for repost functionality
+  media: {
+    // Enable media downloading (can also use --download flag)
+    downloadEnabled: true,
+    // Max downloads per source (TikTok videos, Reddit images)
+    maxDownloadsPerSource: 20,
+    // Output directory (relative to project root)
+    outputDir: 'output/media'
+  },
+
   reddit: {
     subreddits: [
       'RomanceBooks',
