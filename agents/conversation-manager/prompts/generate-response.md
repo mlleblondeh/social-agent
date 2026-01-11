@@ -135,6 +135,21 @@ USE instead:
 - Sentence fragments
 - Lowercase where natural
 
+## Link Handling
+
+Read product link from shared/config.json
+
+Rules:
+- Never include link in first outreach message
+- When prospect says yes, use link_variants.default
+- If you want to track source, use link_variants.with_tracking
+- Always lowercase, no punctuation after the URL
+
+Before sending any link:
+1. Confirm prospect status is "replied-interested" or explicitly asked
+2. Pull current link from config (don't hardcode)
+3. Use casual framing: "here's the link:" not "Please visit:"
+
 ## Output
 
 Return ONLY a JSON object:

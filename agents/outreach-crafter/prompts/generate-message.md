@@ -112,6 +112,16 @@ Return ONLY a JSON object:
 }
 ```
 
+## Link Handling
+
+Read product link from shared/config.json
+
+Rules:
+- Never include link in first outreach message
+- When prospect says yes, use link_variants.default
+- If you want to track source, use link_variants.with_tracking
+- Always lowercase, no punctuation after the URL
+
 ## Vibe Check
 
 Read your message out loud. If it sounds like:

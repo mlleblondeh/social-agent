@@ -1,0 +1,12 @@
+{
+  "product_link": "https://subplot.app",
+  "link_variants": {
+    "default": "https://subplot.app",
+    "beta": "https://subplot-blond.vercel.app/",
+    "with_tracking": "https://subplot.app?ref=outreach"
+  },
+  "link_copy": {
+    "when_sending": "here's the link: {link}",
+    "when_offering": "want me to send you the link?"
+  }
+}

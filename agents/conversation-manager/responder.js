@@ -11,6 +11,31 @@ function loadPromptTemplate() {
   return fs.readFileSync(PROMPT_PATH, 'utf8');
 }
 
+// Link eligibility check - must be called before sending any link
+function canSendLink(prospect, classification) {
+  const eligibleStatuses = ['replied-interested'];
+  const eligibleReplyTypes = ['interested'];
+
+  const statusEligible = eligibleStatuses.includes(prospect.status);
+  const replyTypeEligible = eligibleReplyTypes.includes(classification.reply_type);
+  const explicitlyAsked = classification.explicitly_asked_for_link === true;
+
+  return statusEligible || replyTypeEligible || explicitlyAsked;
+}
+
+// Get the appropriate link variant
+function getLink(variant = 'default') {
+  const { linkVariants } = config.productInfo;
+  return linkVariants[variant] || linkVariants.default;
+}
+
+// Format link with casual framing
+function formatLinkMessage(variant = 'default') {
+  const link = getLink(variant);
+  const template = config.productInfo.linkCopy.when_sending;
+  return template.replace('{link}', link);
+}
+
 function getProspectType(prospect) {
   const score = prospect.metadata?.source_score || 0;
   const { regularReader, smallCreator, largerCreator } = config.prospectTypes;
@@ -106,6 +131,22 @@ async function generateResponse(data) {
       our_word_count: result.response ? result.response.split(/\s+/).length : 0
     };
 
+    // Add link eligibility check
+    const linkEligible = canSendLink(prospect, classification);
+    result.link_check = {
+      eligible: linkEligible,
+      current_link: getLink('default'),
+      tracking_link: getLink('with_tracking'),
+      reason: linkEligible
+        ? 'Prospect is interested or explicitly asked'
+        : 'Prospect has not indicated interest yet'
+    };
+
+    // Warn if response includes link but prospect is not eligible
+    if (result.includes_link && !linkEligible) {
+      result.link_check.warning = 'Response includes link but prospect may not be ready';
+    }
+
     return result;
   } catch (error) {
     console.error(`Response generation error: ${error.message}`);
@@ -116,4 +157,10 @@ async function generateResponse(data) {
   }
 }
 
-module.exports = { generateResponse, getProspectType };
+module.exports = {
+  generateResponse,
+  getProspectType,
+  canSendLink,
+  getLink,
+  formatLinkMessage
+};

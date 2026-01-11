@@ -1,3 +1,30 @@
+const fs = require('fs');
+const path = require('path');
+
+// Load shared config for product links
+function loadSharedConfig() {
+  const sharedConfigPath = path.join(__dirname, '../../shared/config.json');
+  try {
+    return JSON.parse(fs.readFileSync(sharedConfigPath, 'utf8'));
+  } catch (e) {
+    console.warn('Could not load shared config, using defaults');
+    return {
+      product_link: 'https://subplot.app',
+      link_variants: {
+        default: 'https://subplot.app',
+        beta: 'https://subplot-blond.vercel.app/',
+        with_tracking: 'https://subplot.app?ref=outreach'
+      },
+      link_copy: {
+        when_sending: "here's the link: {link}",
+        when_offering: "want me to send you the link?"
+      }
+    };
+  }
+}
+
+const sharedConfig = loadSharedConfig();
+
 module.exports = {
   claude: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -32,7 +59,9 @@ module.exports = {
 
   // Product info for common questions
   productInfo: {
-    link: process.env.SUBPLOT_LINK || 'https://subplot.app',
+    link: sharedConfig.product_link,
+    linkVariants: sharedConfig.link_variants,
+    linkCopy: sharedConfig.link_copy,
 
     faq: {
       'is it free': 'yes, free to try',
